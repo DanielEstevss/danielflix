@@ -1,6 +1,7 @@
 <?php
 
 require_once('../db/banco.php');
+require_once('../functions/funcoes.php');
 
 $pastaFilmes = '/filmes/';
 
@@ -29,41 +30,84 @@ foreach ($arquivos as $arquivo) {
     }
 
     // Pega a extensão
-    $extensao = strtolower(pathinfo($arquivo, PATHINFO_EXTENSION));
+    $extensao = strtolower(
+        pathinfo($arquivo, PATHINFO_EXTENSION)
+    );
 
     // Verifica se é um formato de vídeo permitido
     if (!in_array($extensao, $extensoesPermitidas)) {
         continue;
     }
 
-    // Remove a extensão do nome
-    $nomeFilme = pathinfo($arquivo, PATHINFO_FILENAME);
+    // Extrai título e ano
+    $dadosFilme = extrairDadosFilme($arquivo);
 
-    echo "Encontrado: $nomeFilme <br>";
+    $titulo = $dadosFilme['titulo'];
+    $ano = $dadosFilme['ano'];
+
+    echo "Título: $titulo <br>";
+    echo "Ano: $ano <br>";
+
 
     // Verifica se já existe no banco
     $sql = "SELECT id FROM filme WHERE arquivo = ?";
+
     $stmt = $pdo->prepare($sql);
     $stmt->execute([$caminhoCompleto]);
 
-    $filmeExiste = $stmt->fetch();
+     if ($stmt->fetch()) {
+        echo "Já cadastrado.<br><br>";
+        continue;
+    }
 
-    if ($filmeExiste) {
+    // Busca informações no TMDB
+    echo "Buscando informações no TMDB...<br>";
 
-        echo "Já está cadastrado.<br><br>";
+    $dadosTMDB = buscarFilmeTMDB($titulo, $ano);
+
+    if ($dadosTMDB) {
+
+        echo "Filme encontrado no TMDB: "
+            . $dadosTMDB['titulo']
+            . "<br>";
+
+        $tituloBanco = $dadosTMDB['titulo'];
+        $genero = $dadosTMDB['genero'];
+        $anoBanco = $dadosTMDB['ano'];
+        $nota = $dadosTMDB['nota'];
+        $poster = $dadosTMDB['poster'];
+        $tmdb_id = $dadosTMDB['tmdb_id'];
 
     } else {
 
-        // Cadastra o novo filme
-        $sql = "INSERT INTO filme (titulo, arquivo)
-                VALUES (?, ?)";
+        echo "Filme não encontrado no TMDB.<br>";
 
-        $stmt = $pdo->prepare($sql);
-        $stmt->execute([
-            $nomeFilme,
-            $caminhoCompleto
-        ]);
-
-        echo "Filme cadastrado!<br><br>";
+        $tituloBanco = $titulo;
+        $anoBanco = $ano;
+        $tmdb_id = null;
+        $genero = null;
+        $nota = null;
+        $poster = null;
     }
+
+    // Cadastra o filme
+    $sql = "INSERT INTO filme 
+            (titulo, genero, ano, nota, poster, arquivo, tmdb_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?)";
+
+    $stmt = $pdo->prepare($sql);
+
+    $stmt->execute([
+        $tituloBanco,
+        $genero,
+        $anoBanco,
+        $nota,
+        $poster,
+        $caminhoCompleto,
+        $tmdb_id
+    ]);
+
+    echo "Filme cadastrado com sucesso!<br><br>";
 }
+
+echo "Sincronização concluída!";
