@@ -3,111 +3,504 @@
 require_once('../db/banco.php');
 require_once('../functions/funcoes.php');
 
+
+/*
+|--------------------------------------------------------------------------
+| Configuração da resposta
+|--------------------------------------------------------------------------
+*/
+
+header('Content-Type: application/x-ndjson; charset=utf-8');
+
+header('Cache-Control: no-cache');
+
+header('X-Accel-Buffering: no');
+
+
+/*
+|--------------------------------------------------------------------------
+| Função para enviar uma atualização
+|--------------------------------------------------------------------------
+*/
+
+function enviarProgresso($dados)
+{
+    echo json_encode(
+        $dados,
+        JSON_UNESCAPED_UNICODE
+    );
+
+    echo "\n";
+
+    /*
+    Força o PHP a enviar os dados
+    imediatamente para o navegador.
+    */
+
+    if (ob_get_level() > 0) {
+        ob_flush();
+    }
+
+    flush();
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| Desativa buffers
+|--------------------------------------------------------------------------
+*/
+
+while (ob_get_level() > 0) {
+    ob_end_flush();
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| Pasta dos filmes
+|--------------------------------------------------------------------------
+*/
+
 $pastaFilmes = '/filmes/';
 
+
 $extensoesPermitidas = [
+
     'mp4',
+
     'mkv',
+
     'avi',
+
     'mov',
+
     'webm'
+
 ];
+
+
+/*
+|--------------------------------------------------------------------------
+| Verifica a pasta
+|--------------------------------------------------------------------------
+*/
+
+if (!is_dir($pastaFilmes)) {
+
+    enviarProgresso([
+
+        'tipo' => 'erro',
+
+        'mensagem' =>
+            'A pasta de filmes não foi encontrada.'
+
+    ]);
+
+    exit;
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| Lista os arquivos
+|--------------------------------------------------------------------------
+*/
 
 $arquivos = scandir($pastaFilmes);
 
+
+$arquivosVideo = [];
+
+
 foreach ($arquivos as $arquivo) {
 
-    // Ignora "." e ".."
-    if ($arquivo == '.' || $arquivo == '..') {
+    /*
+    Ignora "." e ".."
+    */
+
+    if (
+        $arquivo === '.' ||
+        $arquivo === '..'
+    ) {
         continue;
     }
 
-    $caminhoCompleto = $pastaFilmes . $arquivo;
 
-    // Verifica se realmente é um arquivo
+    $caminhoCompleto =
+        $pastaFilmes . $arquivo;
+
+
+    /*
+    Verifica se é arquivo.
+    */
+
     if (!is_file($caminhoCompleto)) {
         continue;
     }
 
-    // Pega a extensão
+
+    /*
+    Pega extensão.
+    */
+
     $extensao = strtolower(
-        pathinfo($arquivo, PATHINFO_EXTENSION)
+        pathinfo(
+            $arquivo,
+            PATHINFO_EXTENSION
+        )
     );
 
-    // Verifica se é um formato de vídeo permitido
-    if (!in_array($extensao, $extensoesPermitidas)) {
+
+    /*
+    Verifica extensão.
+    */
+
+    if (
+        !in_array(
+            $extensao,
+            $extensoesPermitidas
+        )
+    ) {
         continue;
     }
 
-    // Extrai título e ano
-    $dadosFilme = extrairDadosFilme($arquivo);
 
-    $titulo = $dadosFilme['titulo'];
-    $ano = $dadosFilme['ano'];
+    $arquivosVideo[] = [
 
-    echo "Título: $titulo <br>";
-    echo "Ano: $ano <br>";
+        'arquivo' =>
+            $arquivo,
+
+        'caminho' =>
+            $caminhoCompleto
+
+    ];
+}
 
 
-    // Verifica se já existe no banco
-    $sql = "SELECT id FROM filme WHERE arquivo = ?";
+/*
+|--------------------------------------------------------------------------
+| Total
+|--------------------------------------------------------------------------
+*/
 
-    $stmt = $pdo->prepare($sql);
-    $stmt->execute([$caminhoCompleto]);
+$total = count($arquivosVideo);
 
-     if ($stmt->fetch()) {
-        echo "Já cadastrado.<br><br>";
+
+$processados = 0;
+
+$novos = 0;
+
+$existentes = 0;
+
+$naoEncontrados = 0;
+
+
+/*
+|--------------------------------------------------------------------------
+| Informa o início
+|--------------------------------------------------------------------------
+*/
+
+enviarProgresso([
+
+    'tipo' => 'inicio',
+
+    'total' => $total
+
+]);
+
+
+/*
+|--------------------------------------------------------------------------
+| Processa os filmes
+|--------------------------------------------------------------------------
+*/
+
+foreach ($arquivosVideo as $item) {
+
+    $arquivo =
+        $item['arquivo'];
+
+
+    $caminhoCompleto =
+        $item['caminho'];
+
+
+    /*
+    ================================================================
+    Extrai título e ano
+    ================================================================
+    */
+
+    $dadosFilme =
+        extrairDadosFilme(
+            $arquivo
+        );
+
+
+    $titulo =
+        $dadosFilme['titulo'];
+
+
+    $ano =
+        $dadosFilme['ano'];
+
+
+    /*
+    ================================================================
+    Verifica se já existe
+    ================================================================
+    */
+
+    $sql =
+        "SELECT id
+         FROM filme
+         WHERE arquivo = ?";
+
+
+    $stmt =
+        $pdo->prepare($sql);
+
+
+    $stmt->execute([
+        $caminhoCompleto
+    ]);
+
+
+    if ($stmt->fetch()) {
+
+        $existentes++;
+
+        $processados++;
+
+
+        /*
+        Envia progresso.
+        */
+
+        enviarProgresso([
+
+            'tipo' =>
+                'progresso',
+
+            'titulo' =>
+                $titulo,
+
+            'processados' =>
+                $processados,
+
+            'total' =>
+                $total,
+
+            'novos' =>
+                $novos,
+
+            'existentes' =>
+                $existentes,
+
+            'nao_encontrados' =>
+                $naoEncontrados,
+
+            'status' =>
+                'existente'
+
+        ]);
+
+
         continue;
     }
 
-    // Busca informações no TMDB
-    echo "Buscando informações no TMDB...<br>";
 
-    $dadosTMDB = buscarFilmeTMDB($titulo, $ano);
+    /*
+    ================================================================
+    Consulta TMDB
+    ================================================================
+    */
+
+    $dadosTMDB =
+        buscarFilmeTMDB(
+            $titulo,
+            $ano
+        );
+
+
+    /*
+    ================================================================
+    Encontrou no TMDB
+    ================================================================
+    */
 
     if ($dadosTMDB) {
 
-        echo "Filme encontrado no TMDB: "
-            . $dadosTMDB['titulo']
-            . "<br>";
+        $tituloBanco =
+            $dadosTMDB['titulo'];
 
-        $tituloBanco = $dadosTMDB['titulo'];
-        $genero = $dadosTMDB['genero'];
-        $anoBanco = $dadosTMDB['ano'];
-        $nota = $dadosTMDB['nota'];
-        $poster = $dadosTMDB['poster'];
-        $tmdb_id = $dadosTMDB['tmdb_id'];
+
+        $genero =
+            $dadosTMDB['genero'];
+
+
+        $anoBanco =
+            $dadosTMDB['ano'];
+
+
+        $nota =
+            $dadosTMDB['nota'];
+
+
+        $poster =
+            $dadosTMDB['poster'];
+
+
+        $tmdb_id =
+            $dadosTMDB['tmdb_id'];
 
     } else {
 
-        echo "Filme não encontrado no TMDB.<br>";
+        /*
+        ============================================================
+        Não encontrou no TMDB
+        ============================================================
+        */
 
-        $tituloBanco = $titulo;
-        $anoBanco = $ano;
-        $tmdb_id = null;
-        $genero = null;
-        $nota = null;
-        $poster = null;
+        $tituloBanco =
+            $titulo;
+
+
+        $anoBanco =
+            $ano;
+
+
+        $tmdb_id =
+            null;
+
+
+        $genero =
+            null;
+
+
+        $nota =
+            null;
+
+
+        $poster =
+            null;
+
+
+        $naoEncontrados++;
     }
 
-    // Cadastra o filme
-    $sql = "INSERT INTO filme 
-            (titulo, genero, ano, nota, poster, arquivo, tmdb_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?)";
 
-    $stmt = $pdo->prepare($sql);
+    /*
+    ================================================================
+    Insere no banco
+    ================================================================
+    */
+
+    $sql =
+        "INSERT INTO filme
+        (
+            titulo,
+            genero,
+            ano,
+            nota,
+            poster,
+            arquivo,
+            tmdb_id
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?)";
+
+
+    $stmt =
+        $pdo->prepare($sql);
+
 
     $stmt->execute([
+
         $tituloBanco,
+
         $genero,
+
         $anoBanco,
+
         $nota,
+
         $poster,
+
         $caminhoCompleto,
+
         $tmdb_id
+
     ]);
 
-    echo "Filme cadastrado com sucesso!<br><br>";
+
+    $novos++;
+
+    $processados++;
+
+
+    /*
+    ================================================================
+    Envia progresso
+    ================================================================
+    */
+
+    enviarProgresso([
+
+        'tipo' =>
+            'progresso',
+
+        'titulo' =>
+            $tituloBanco,
+
+        'processados' =>
+            $processados,
+
+        'total' =>
+            $total,
+
+        'novos' =>
+            $novos,
+
+        'existentes' =>
+            $existentes,
+
+        'nao_encontrados' =>
+            $naoEncontrados,
+
+        'status' =>
+            'novo'
+
+    ]);
+
 }
 
-echo "Sincronização concluída!";
+
+/*
+|--------------------------------------------------------------------------
+| Finalização
+|--------------------------------------------------------------------------
+*/
+
+enviarProgresso([
+
+    'tipo' =>
+        'fim',
+
+    'total' =>
+        $total,
+
+    'processados' =>
+        $processados,
+
+    'novos' =>
+        $novos,
+
+    'existentes' =>
+        $existentes,
+
+    'nao_encontrados' =>
+        $naoEncontrados
+
+]);

@@ -355,3 +355,221 @@ body {
 .voltar:hover {
     color: #e50914;
 }
+
+.acoes {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.botao-atualizar {
+    background: #e50914;
+
+    color: white;
+
+    text-decoration: none;
+
+    padding: 11px 16px;
+
+    border-radius: 5px;
+
+    font-size: 14px;
+
+    font-weight: bold;
+
+    transition: 0.2s;
+}
+
+.botao-atualizar:hover {
+    background: #f40612;
+
+    transform: scale(1.03);
+}
+
+/* ==========================================================
+   PAINEL DE SINCRONIZAÇÃO
+   ========================================================== */
+
+.painel-sincronizacao {
+    display: none;
+
+    margin-bottom: 35px;
+
+    background: #1f1f1f;
+
+    border-radius: 10px;
+
+    padding: 30px;
+
+    border: 1px solid #333;
+}
+
+.sincronizacao-conteudo {
+    max-width: 700px;
+
+    margin: 0 auto;
+
+    text-align: center;
+}
+
+.sincronizacao-titulo {
+    font-size: 22px;
+
+    font-weight: bold;
+
+    margin-bottom: 15px;
+}
+
+.filme-atual {
+    color: #aaa;
+
+    margin-bottom: 20px;
+
+    white-space: nowrap;
+
+    overflow: hidden;
+
+    text-overflow: ellipsis;
+}
+
+
+/* BARRA */
+
+.barra-progresso {
+    width: 100%;
+
+    height: 12px;
+
+    background: #333;
+
+    border-radius: 10px;
+
+    overflow: hidden;
+}
+
+.barra-progresso-preenchida {
+    width: 0%;
+
+    height: 100%;
+
+    background: #e50914;
+
+    border-radius: 10px;
+
+    transition: width 0.3s ease;
+}
+
+.porcentagem {
+    margin-top: 10px;
+
+    font-size: 18px;
+
+    font-weight: bold;
+}
+
+.contador {
+    margin-top: 5px;
+
+    color: #999;
+}
+
+
+/* ESTATÍSTICAS */
+
+.estatisticas {
+    display: flex;
+
+    justify-content: center;
+
+    gap: 30px;
+
+    margin-top: 25px;
+
+    color: #aaa;
+
+    font-size: 14px;
+}
+
+.estatisticas strong {
+    color: white;
+}
+
+
+/* CONCLUSÃO */
+
+.mensagem-conclusao {
+    display: none;
+
+    text-align: center;
+
+    margin-bottom: 35px;
+
+    padding: 40px 20px;
+
+    background: #1f1f1f;
+
+    border-radius: 10px;
+
+    border: 1px solid #333;
+}
+
+.icone-conclusao {
+    font-size: 45px;
+
+    margin-bottom: 10px;
+}
+
+.mensagem-conclusao h2 {
+    margin-bottom: 10px;
+}
+
+.mensagem-conclusao p {
+    color: #aaa;
+
+    margin-bottom: 25px;
+}
+
+
+/* BOTÃO CONTINUAR */
+
+.botao-continuar {
+    background: #e50914;
+
+    color: white;
+
+    border: none;
+
+    padding: 12px 25px;
+
+    border-radius: 5px;
+
+    cursor: pointer;
+
+    font-weight: bold;
+}
+
+.botao-continuar:hover {
+    background: #f40612;
+}
+
+
+/* BOTÃO ATUALIZAR DESABILITADO */
+
+.botao-atualizar:disabled {
+    opacity: 0.5;
+
+    cursor: not-allowed;
+
+    transform: none;
+}
+
+
+@media (max-width: 768px) {
+
+    .estatisticas {
+        flex-direction: column;
+
+        gap: 10px;
+    }
+
+}

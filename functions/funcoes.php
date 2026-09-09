@@ -10,7 +10,7 @@ function extrairDadosFilme($arquivo)
 
         $ano = (int) $resultado[1];
 
-        // Remove "(2018)" do título
+        // Remove o ano do título
         $titulo = preg_replace('/\s*\(\d{4}\)/', '', $nome);
 
     } else {
@@ -26,30 +26,43 @@ function extrairDadosFilme($arquivo)
 }
 
 
+// Remove acentos e deixa o texto
+// mais fácil de comparar
+     
+function normalizarTitulo($texto)
+{
+    $texto = strtolower($texto);
+
+    $texto = iconv(
+        'UTF-8',
+        'ASCII//TRANSLIT//IGNORE',
+        $texto
+    );
+
+    $texto = preg_replace(
+        '/[^a-z0-9\s]/',
+        ' ',
+        $texto
+    );
+
+    $texto = preg_replace(
+        '/\s+/',
+        ' ',
+        $texto
+    );
+
+    return trim($texto);
+}
+
+
 function buscarFilmeTMDB($titulo, $ano = null)
 {
     require_once(__DIR__ . '/../config/tmdb.php');
 
-    /**
-     * Remove acentos e deixa o texto
-     * mais fácil de comparar.
-     */
-    function normalizarTitulo($texto)
-    {
-        $texto = strtolower($texto);
 
-        $texto = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $texto);
-
-        $texto = preg_replace('/[^a-z0-9\s]/', ' ', $texto);
-
-        $texto = preg_replace('/\s+/', ' ', $texto);
-
-        return trim($texto);
-    }
-
-    /**
-     * Lista de gêneros do TMDB
-     */
+    
+    // Lista de gêneros do TMDB
+     
     $generos = [
         28 => 'Ação',
         12 => 'Aventura',
@@ -72,9 +85,9 @@ function buscarFilmeTMDB($titulo, $ano = null)
         37 => 'Faroeste'
     ];
 
-    /**
-     * Função auxiliar para fazer requisições ao TMDB
-     */
+    
+    // Função auxiliar para fazer requisições ao TMDB
+     
     function requisicaoTMDB($url, $tmdbToken)
     {
         $ch = curl_init($url);
@@ -104,10 +117,10 @@ function buscarFilmeTMDB($titulo, $ano = null)
         return json_decode($resposta, true);
     }
 
-    /**
-     * Primeira busca:
-     * título em português + ano
-     */
+    
+    // Primeira busca:
+    // título em português + ano
+    
     $parametros = [
         'query' => $titulo,
         'language' => 'pt-BR',
@@ -125,11 +138,11 @@ function buscarFilmeTMDB($titulo, $ano = null)
 
     if (empty($dados['results'])) {
 
-        /**
-         * Segunda tentativa:
-         * procura somente pelo título,
-         * sem limitar pelo ano.
-         */
+        
+        //  Segunda tentativa:
+        //  procura somente pelo título,
+        //  sem limitar pelo ano.
+         
         $parametros = [
             'query' => $titulo,
             'language' => 'pt-BR',
@@ -146,17 +159,17 @@ function buscarFilmeTMDB($titulo, $ano = null)
         return null;
     }
 
-    /**
-     * Normaliza o título do arquivo
-     */
+    
+    // Normaliza o título do arquivo
+     
     $tituloNormalizado = normalizarTitulo($titulo);
 
     $filmeEscolhido = null;
     $maiorPontuacao = -1;
 
-    /**
-     * Analisa todos os resultados encontrados.
-     */
+    
+    // Analisa todos os resultados encontrados
+     
     foreach ($dados['results'] as $filme) {
 
         $pontuacao = 0;
@@ -167,23 +180,23 @@ function buscarFilmeTMDB($titulo, $ano = null)
         $tituloTMDBNormalizado = normalizarTitulo($tituloTMDB);
         $tituloOriginalNormalizado = normalizarTitulo($tituloOriginal);
 
-        /**
-         * 1. Título exatamente igual
-         */
+        
+        // 1. Título exatamente igual
+         
         if ($tituloNormalizado === $tituloTMDBNormalizado) {
             $pontuacao += 100;
         }
 
-        /**
-         * 2. Título original exatamente igual
-         */
+        
+        // 2. Título original exatamente igual
+         
         if ($tituloNormalizado === $tituloOriginalNormalizado) {
             $pontuacao += 90;
         }
 
-        /**
-         * 3. Similaridade entre os títulos
-         */
+        
+        // 3. Similaridade entre os títulos
+        
         similar_text(
             $tituloNormalizado,
             $tituloTMDBNormalizado,
@@ -199,9 +212,9 @@ function buscarFilmeTMDB($titulo, $ano = null)
         $pontuacao += $similaridadePT;
         $pontuacao += $similaridadeOriginal * 0.5;
 
-        /**
-         * 4. Confere o ano
-         */
+        
+        // 4. Confere o ano
+        
         if (!empty($filme['release_date'])) {
 
             $anoFilme = (int) date(
@@ -214,17 +227,17 @@ function buscarFilmeTMDB($titulo, $ano = null)
             }
         }
 
-        /**
-         * 5. Dá uma pequena vantagem para filmes
-         * que possuem poster.
-         */
+        
+        // 5. Dá uma pequena vantagem para filmes
+        // que possuem poster
+        
         if (!empty($filme['poster_path'])) {
             $pontuacao += 5;
         }
 
-        /**
-         * Guarda o melhor resultado
-         */
+        
+        // Guarda o melhor resultado
+         
         if ($pontuacao > $maiorPontuacao) {
 
             $maiorPontuacao = $pontuacao;
@@ -237,10 +250,10 @@ function buscarFilmeTMDB($titulo, $ano = null)
         return null;
     }
 
-    /**
-     * Converte os IDs dos gêneros
-     * para seus respectivos nomes.
-     */
+    
+    // Converte os IDs dos gêneros
+    // para seus respectivos nomes
+     
     $generosFilme = [];
 
     if (!empty($filmeEscolhido['genre_ids'])) {
@@ -255,10 +268,10 @@ function buscarFilmeTMDB($titulo, $ano = null)
 
     $genero = implode(', ', $generosFilme);
 
-    /**
-     * Retorna os dados que vamos utilizar
-     * no banco de dados.
-     */
+    
+    // Retorna os dados que vamos utilizar
+    // no banco de dados
+     
     return [
 
         'titulo' => $filmeEscolhido['title'] ?? null,
